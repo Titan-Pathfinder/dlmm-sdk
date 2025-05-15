@@ -84,10 +84,9 @@ impl LbPairExtension for LbPair {
             if elapsed < s_params.decay_period as i64 {
                 let volatility_reference = v_params
                     .volatility_accumulator
-                    .checked_sub(s_params.reduction_factor as u32)
-                    .context("overflow")?
-                    .checked_div(BASIS_POINT_MAX as u32)
-                    .context("overflow")?;
+                    .checked_mul(s_params.reduction_factor as u32)
+                    .and_then(|x| x.checked_div(BASIS_POINT_MAX as u32))
+                    .ok_or_else(|| anyhow!("Failed to update volatility_reference"))?;
 
                 v_params.volatility_reference = volatility_reference;
             }
@@ -106,7 +105,7 @@ impl LbPairExtension for LbPair {
 
         let delta_id = i64::from(v_params.index_reference)
             .checked_sub(self.active_id.into())
-            .context("overflow")?
+            .ok_or_else(|| anyhow!("Failed to calculate delta id"))?
             .unsigned_abs();
 
         let volatility_accumulator = u64::from(v_params.volatility_reference)
